@@ -1,5 +1,7 @@
 package com.loopers.domain.payment;
 
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -97,10 +99,10 @@ public class Payment {
      */
     public void assignPgTransactionKey(String pgTransactionKey) {
         if (this.pgTransactionKey != null) {
-            throw new IllegalStateException("이미 PG 트랜잭션 키가 설정되어 있습니다");
+            throw new CoreException(ErrorType.CONFLICT, "이미 PG 트랜잭션 키가 설정되어 있습니다");
         }
         if (pgTransactionKey == null || pgTransactionKey.trim().isEmpty()) {
-            throw new IllegalArgumentException("PG 트랜잭션 키는 필수입니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "PG 트랜잭션 키는 필수입니다");
         }
 
         this.pgTransactionKey = pgTransactionKey;
@@ -115,7 +117,7 @@ public class Payment {
             return; // 이미 성공 (멱등성)
         }
         if (this.status == PaymentStatus.FAILED) {
-            throw new IllegalStateException("이미 실패한 결제는 성공으로 변경할 수 없습니다");
+            throw new CoreException(ErrorType.CONFLICT, "이미 실패한 결제는 성공으로 변경할 수 없습니다");
         }
 
         this.status = PaymentStatus.SUCCESS;
@@ -128,7 +130,7 @@ public class Payment {
      */
     public void fail(String reason) {
         if (this.status == PaymentStatus.SUCCESS) {
-            throw new IllegalStateException("이미 성공한 결제는 실패로 변경할 수 없습니다");
+            throw new CoreException(ErrorType.CONFLICT, "이미 성공한 결제는 실패로 변경할 수 없습니다");
         }
         if (this.status == PaymentStatus.FAILED) {
             return; // 이미 실패 (멱등성)
@@ -173,13 +175,13 @@ public class Payment {
      */
     private static String maskCardNo(String cardNo) {
         if (cardNo == null || cardNo.length() < 19) {
-            throw new IllegalArgumentException("잘못된 카드 번호 형식입니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "잘못된 카드 번호 형식입니다");
         }
 
         // xxxx-xxxx-xxxx-xxxx 형식에서 중간 8자리 마스킹
         String[] parts = cardNo.split("-");
         if (parts.length != 4) {
-            throw new IllegalArgumentException("카드 번호는 xxxx-xxxx-xxxx-xxxx 형식이어야 합니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "카드 번호는 xxxx-xxxx-xxxx-xxxx 형식이어야 합니다");
         }
 
         return parts[0] + "-****-****-" + parts[3];
@@ -189,31 +191,31 @@ public class Payment {
 
     private static void validateUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
-            throw new IllegalArgumentException("사용자 ID는 필수입니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "사용자 ID는 필수입니다");
         }
     }
 
     private static void validateOrderId(Long orderId) {
         if (orderId == null || orderId <= 0) {
-            throw new IllegalArgumentException("주문 ID는 양수여야 합니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "주문 ID는 양수여야 합니다");
         }
     }
 
     private static void validateCardType(CardType cardType) {
         if (cardType == null) {
-            throw new IllegalArgumentException("카드 타입은 필수입니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "카드 타입은 필수입니다");
         }
     }
 
     private static void validateCardNo(String cardNo) {
         if (cardNo == null || !cardNo.matches("^\\d{4}-\\d{4}-\\d{4}-\\d{4}$")) {
-            throw new IllegalArgumentException("카드 번호는 xxxx-xxxx-xxxx-xxxx 형식이어야 합니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "카드 번호는 xxxx-xxxx-xxxx-xxxx 형식이어야 합니다");
         }
     }
 
     private static void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("결제 금액은 0보다 커야 합니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "결제 금액은 0보다 커야 합니다");
         }
     }
 }
