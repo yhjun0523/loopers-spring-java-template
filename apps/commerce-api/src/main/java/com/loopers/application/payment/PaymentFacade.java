@@ -7,6 +7,8 @@ import com.loopers.domain.payment.PaymentRepository;
 import com.loopers.infrastructure.payment.client.PgClient;
 import com.loopers.infrastructure.payment.client.PgClientService;
 import com.loopers.infrastructure.payment.client.dto.PgClientDto;
+import com.loopers.support.error.CoreException;
+import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,14 +46,14 @@ public class PaymentFacade {
 
         // 1. 주문 존재 여부 및 권한 확인
         Order order = orderRepository.findById(command.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다: " + command.getOrderId()));
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "존재하지 않는 주문입니다: " + command.getOrderId()));
 
         if (!order.isOwnedBy(command.getUserId())) {
-            throw new IllegalStateException("본인의 주문만 결제할 수 있습니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "본인의 주문만 결제할 수 있습니다");
         }
 
         if (!order.isPending()) {
-            throw new IllegalStateException("대기 중인 주문만 결제할 수 있습니다");
+            throw new CoreException(ErrorType.CONFLICT, "대기 중인 주문만 결제할 수 있습니다");
         }
 
         // 2. Payment 도메인 생성
@@ -112,8 +114,8 @@ public class PaymentFacade {
 
         // 1. Payment 조회
         Payment payment = paymentRepository.findByPgTransactionKey(command.getPgTransactionKey())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "결제 정보를 찾을 수 없습니다: " + command.getPgTransactionKey()));
+                .orElseThrow(() -> new CoreException(
+                        ErrorType.NOT_FOUND, "결제 정보를 찾을 수 없습니다: " + command.getPgTransactionKey()));
 
         // 2. Payment 상태 업데이트
         if ("SUCCESS".equals(command.getStatus())) {
@@ -122,7 +124,7 @@ public class PaymentFacade {
 
             // 3. Order 상태 업데이트 (결제 성공 시 주문 완료)
             Order order = orderRepository.findById(payment.getOrderId())
-                    .orElseThrow(() -> new IllegalStateException("주문을 찾을 수 없습니다: " + payment.getOrderId()));
+                    .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문을 찾을 수 없습니다: " + payment.getOrderId()));
             order.complete();
             orderRepository.save(order);
 
@@ -149,7 +151,7 @@ public class PaymentFacade {
     public void syncPaymentStatus(Long paymentId) {
         // 1. Payment 조회
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "결제 정보를 찾을 수 없습니다: " + paymentId));
 
         // PG 트랜잭션 키가 없으면 스킵 (PG 요청 실패한 경우)
         if (payment.getPgTransactionKey() == null) {
@@ -179,7 +181,7 @@ public class PaymentFacade {
 
                 // Order 상태도 업데이트
                 Order order = orderRepository.findById(payment.getOrderId())
-                        .orElseThrow(() -> new IllegalStateException("주문을 찾을 수 없습니다: " + payment.getOrderId()));
+                        .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문을 찾을 수 없습니다: " + payment.getOrderId()));
                 order.complete();
                 orderRepository.save(order);
 
@@ -205,10 +207,10 @@ public class PaymentFacade {
     @Transactional(readOnly = true)
     public PaymentInfo getPaymentDetail(Long paymentId, String userId) {
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "결제 정보를 찾을 수 없습니다: " + paymentId));
 
         if (!payment.isOwnedBy(userId)) {
-            throw new IllegalStateException("본인의 결제 정보만 조회할 수 있습니다");
+            throw new CoreException(ErrorType.BAD_REQUEST, "본인의 결제 정보만 조회할 수 있습니다");
         }
 
         return PaymentInfo.from(payment);
