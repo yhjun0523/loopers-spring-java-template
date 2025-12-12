@@ -6,6 +6,7 @@ import com.loopers.domain.like.LikeService;
 import com.loopers.domain.product.ProductDetailService;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.infrastructure.cache.ProductCacheService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,8 +28,9 @@ public class ApplicationConfig {
     @Bean
     public LikeFacade likeFacade(
             LikeService likeService,
-            ProductCacheService productCacheService
+            ProductCacheService productCacheService,
+            ApplicationEventPublisher eventPublisher
     ) {
-        return new LikeFacade(likeService, productCacheService);
+        return new LikeFacade(likeService, productCacheService, eventPublisher);
     }
 }

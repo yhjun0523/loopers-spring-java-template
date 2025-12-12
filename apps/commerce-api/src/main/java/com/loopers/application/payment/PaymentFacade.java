@@ -1,5 +1,6 @@
 package com.loopers.application.payment;
 
+import com.loopers.application.payment.event.PaymentCompletedEvent;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.payment.Payment;
@@ -12,6 +13,7 @@ import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Payment Facade (Application Layer)
  * - 트랜잭션 경계 관리
  * - PG 시스템과 도메인 객체 조합
- * - Order와 Payment 연동
+ * - 부가 로직은 이벤트로 분리 (주문 완료 처리)
  */
 @Service
 @RequiredArgsConstructor
@@ -30,6 +32,7 @@ public class PaymentFacade {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PgClientService pgClientService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 결제 요청
@@ -104,7 +107,7 @@ public class PaymentFacade {
     /**
      * 콜백 처리 (PG로부터 결제 결과 수신)
      * - Payment 상태 업데이트
-     * - Order 상태 업데이트 (결제 성공 시)
+     * - 주문 완료 처리는 이벤트로 분리
      *
      * @param command 콜백 Command
      */
@@ -121,29 +124,23 @@ public class PaymentFacade {
         if ("SUCCESS".equals(command.getStatus())) {
             payment.success();
             log.info("결제 성공: pgTransactionKey={}, orderId={}", command.getPgTransactionKey(), payment.getOrderId());
-
-            // 3. Order 상태 업데이트 (결제 성공 시 주문 완료)
-            Order order = orderRepository.findById(payment.getOrderId())
-                    .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문을 찾을 수 없습니다: " + payment.getOrderId()));
-            order.complete();
-            orderRepository.save(order);
-
-            log.info("주문 완료 처리: orderId={}", payment.getOrderId());
         } else if ("FAILED".equals(command.getStatus())) {
             payment.fail(command.getReason());
             log.warn("결제 실패: pgTransactionKey={}, orderId={}, reason={}",
                     command.getPgTransactionKey(), payment.getOrderId(), command.getReason());
-
-            // 결제 실패 시 주문은 PENDING 상태 유지 (재시도 가능)
         }
 
         paymentRepository.save(payment);
+
+        // 3. 결제 완료 이벤트 발행 (주문 완료 처리, 데이터 플랫폼 전송 등)
+        eventPublisher.publishEvent(PaymentCompletedEvent.from(payment));
     }
 
     /**
      * 결제 상태 확인 및 동기화 (스케줄러용)
      * - PG에 상태 조회
-     * - Payment와 Order 상태 동기화
+     * - Payment 상태 동기화
+     * - 주문 완료 처리는 이벤트로 분리
      *
      * @param paymentId Payment ID
      */
@@ -178,13 +175,6 @@ public class PaymentFacade {
             PgClientDto.TransactionStatus pgStatus = pgResponse.data().status();
             if (pgStatus == PgClientDto.TransactionStatus.SUCCESS) {
                 payment.success();
-
-                // Order 상태도 업데이트
-                Order order = orderRepository.findById(payment.getOrderId())
-                        .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문을 찾을 수 없습니다: " + payment.getOrderId()));
-                order.complete();
-                orderRepository.save(order);
-
                 log.info("결제 상태 동기화 완료 (SUCCESS): paymentId={}, orderId={}", paymentId, payment.getOrderId());
             } else if (pgStatus == PgClientDto.TransactionStatus.FAILED) {
                 payment.fail(pgResponse.data().reason());
@@ -192,6 +182,9 @@ public class PaymentFacade {
             }
 
             paymentRepository.save(payment);
+
+            // 4. 결제 완료 이벤트 발행 (주문 완료 처리, 데이터 플랫폼 전송 등)
+            eventPublisher.publishEvent(PaymentCompletedEvent.from(payment));
         } catch (Exception e) {
             log.error("결제 상태 동기화 중 예외 발생: paymentId={}, error={}", paymentId, e.getMessage());
         }

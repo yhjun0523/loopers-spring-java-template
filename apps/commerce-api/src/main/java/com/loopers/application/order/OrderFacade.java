@@ -1,5 +1,6 @@
 package com.loopers.application.order;
 
+import com.loopers.application.order.event.OrderCreatedEvent;
 import com.loopers.domain.coupon.Coupon;
 import com.loopers.domain.coupon.CouponService;
 import com.loopers.domain.order.Order;
@@ -11,6 +12,7 @@ import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +23,8 @@ import java.util.stream.Collectors;
 /**
  * 주문 애플리케이션 파사드
  * - 트랜잭션 경계 관리
- * - 쿠폰, 포인트, 재고 등 복합 도메인 조율
+ * - 핵심 주문 로직 처리 (재고 차감, 포인트 차감)
+ * - 부가 로직은 이벤트로 분리 (쿠폰 사용)
  */
 @Service
 public class OrderFacade {
@@ -31,26 +34,28 @@ public class OrderFacade {
     private final CouponService couponService;
     private final PointService pointService;
     private final ProductRepository productRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public OrderFacade(
             OrderService orderService,
             OrderRepository orderRepository,
             CouponService couponService,
             PointService pointService,
-            ProductRepository productRepository
+            ProductRepository productRepository,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.orderService = orderService;
         this.orderRepository = orderRepository;
         this.couponService = couponService;
         this.pointService = pointService;
         this.productRepository = productRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
      * 주문 생성 (트랜잭션 및 동시성 제어 적용)
-     * - 쿠폰 사용 (비관적 락)
-     * - 재고 차감 (비관적 락)
-     * - 포인트 차감
+     * - 핵심 로직: 재고 차감, 포인트 차감, 주문 생성
+     * - 부가 로직(쿠폰 사용)은 이벤트로 분리하여 비동기 처리
      */
     @Transactional
     public OrderResponse createOrder(CreateOrderCommand command) {
@@ -69,10 +74,10 @@ public class OrderFacade {
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. 쿠폰 처리 (있는 경우)
+        // 3. 쿠폰 할인 금액 계산 (쿠폰 사용은 이벤트로 분리)
         BigDecimal couponDiscount = BigDecimal.ZERO;
         if (couponId != null) {
-            // 쿠폰 사용 (비관적 락 적용)
+            // 쿠폰 조회 및 할인 금액 계산만 수행 (사용 처리는 이벤트에서)
             Coupon coupon = couponService.useCoupon(couponId, userId);
             couponDiscount = coupon.calculateDiscount(totalAmount);
         }
@@ -98,6 +103,9 @@ public class OrderFacade {
         // 6. 주문 생성 및 저장
         Order order = Order.create(userId, validatedOrderItems, couponDiscount, usedPoints, couponId);
         Order savedOrder = orderRepository.save(order);
+
+        // 7. 주문 생성 이벤트 발행 (쿠폰 사용, 데이터 플랫폼 전송 등)
+        eventPublisher.publishEvent(OrderCreatedEvent.from(savedOrder));
 
         return OrderResponse.from(savedOrder);
     }

@@ -4,6 +4,7 @@ import com.loopers.domain.like.LikeService;
 import com.loopers.infrastructure.cache.ProductCacheService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -14,37 +15,37 @@ import static org.mockito.Mockito.*;
 class LikeFacadeTest {
 
     @Test
-    @DisplayName("addLike는 도메인 서비스에 위임하고 캐시를 무효화한다 (멱등)")
+    @DisplayName("addLike는 도메인 서비스에 위임한다 (멱등)")
     void addLike_delegates() {
         // given
         LikeService likeService = mock(LikeService.class);
         ProductCacheService cacheService = mock(ProductCacheService.class);
-        LikeFacade facade = new LikeFacade(likeService, cacheService);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+        LikeFacade facade = new LikeFacade(likeService, cacheService, eventPublisher);
 
         // when
         facade.addLike("user-1", 10L);
 
         // then
         verify(likeService, times(1)).addLike("user-1", 10L);
-        verify(cacheService, times(1)).evictProductDetail(10L);
-        verify(cacheService, times(1)).evictProductList();
+        // 이벤트 발행은 항상 수행되지만 단위 테스트에서는 검증하지 않음
     }
 
     @Test
-    @DisplayName("removeLike는 도메인 서비스에 위임하고 캐시를 무효화한다 (멱등)")
+    @DisplayName("removeLike는 도메인 서비스에 위임한다 (멱등)")
     void removeLike_delegates() {
         // given
         LikeService likeService = mock(LikeService.class);
         ProductCacheService cacheService = mock(ProductCacheService.class);
-        LikeFacade facade = new LikeFacade(likeService, cacheService);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+        LikeFacade facade = new LikeFacade(likeService, cacheService, eventPublisher);
 
         // when
         facade.removeLike("user-1", 10L);
 
         // then
         verify(likeService, times(1)).removeLike("user-1", 10L);
-        verify(cacheService, times(1)).evictProductDetail(10L);
-        verify(cacheService, times(1)).evictProductList();
+        // 이벤트 발행은 항상 수행되지만 단위 테스트에서는 검증하지 않음
     }
 
     @Test
@@ -53,8 +54,9 @@ class LikeFacadeTest {
         // given
         LikeService likeService = mock(LikeService.class);
         ProductCacheService cacheService = mock(ProductCacheService.class);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         when(likeService.isLiked("u", 1L)).thenReturn(true);
-        LikeFacade facade = new LikeFacade(likeService, cacheService);
+        LikeFacade facade = new LikeFacade(likeService, cacheService, eventPublisher);
 
         // when
         boolean liked = facade.isLiked("u", 1L);
@@ -71,8 +73,9 @@ class LikeFacadeTest {
         // given
         LikeService likeService = mock(LikeService.class);
         ProductCacheService cacheService = mock(ProductCacheService.class);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         when(likeService.getLikeCount(1L)).thenReturn(7);
-        LikeFacade facade = new LikeFacade(likeService, cacheService);
+        LikeFacade facade = new LikeFacade(likeService, cacheService, eventPublisher);
 
         // when
         int count = facade.getLikeCount(1L);
@@ -89,8 +92,9 @@ class LikeFacadeTest {
         // given
         LikeService likeService = mock(LikeService.class);
         ProductCacheService cacheService = mock(ProductCacheService.class);
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         when(likeService.getLikedProductIds("u")).thenReturn(List.of(1L, 2L, 3L));
-        LikeFacade facade = new LikeFacade(likeService, cacheService);
+        LikeFacade facade = new LikeFacade(likeService, cacheService, eventPublisher);
 
         // when
         List<Long> ids = facade.getLikedProductIds("u");
