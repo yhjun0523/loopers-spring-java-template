@@ -361,8 +361,10 @@ class PaymentFacadeIntegrationTest {
                 userId,
                 orderItems,
                 totalPrice,
+                BigDecimal.ZERO, // couponDiscount
                 0, // usedPoints
                 totalPrice, // finalAmount
+                null, // couponId
                 OrderStatus.PENDING,
                 LocalDateTime.now(),
                 LocalDateTime.now()
