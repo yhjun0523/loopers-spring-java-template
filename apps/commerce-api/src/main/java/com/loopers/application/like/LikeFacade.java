@@ -1,6 +1,7 @@
 package com.loopers.application.like;
 
 import com.loopers.domain.like.LikeService;
+import com.loopers.infrastructure.cache.ProductCacheService;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -11,25 +12,35 @@ import org.springframework.transaction.annotation.Transactional;
 public class LikeFacade {
 
     private final LikeService likeService;
+    private final ProductCacheService productCacheService;
 
-    public LikeFacade(LikeService likeService) {
+    public LikeFacade(LikeService likeService, ProductCacheService productCacheService) {
         this.likeService = likeService;
+        this.productCacheService = productCacheService;
     }
 
     /**
      * 좋아요 등록 (멱등)
+     * - 좋아요 등록 후 상품 캐시를 무효화한다.
      */
     @Transactional
     public void addLike(String userId, Long productId) {
         likeService.addLike(userId, productId);
+        // 좋아요 수가 변경되었으므로 해당 상품의 캐시를 무효화
+        productCacheService.evictProductDetail(productId);
+        productCacheService.evictProductList();
     }
 
     /**
      * 좋아요 취소 (멱등)
+     * - 좋아요 취소 후 상품 캐시를 무효화한다.
      */
     @Transactional
     public void removeLike(String userId, Long productId) {
         likeService.removeLike(userId, productId);
+        // 좋아요 수가 변경되었으므로 해당 상품의 캐시를 무효화
+        productCacheService.evictProductDetail(productId);
+        productCacheService.evictProductList();
     }
 
     /**
