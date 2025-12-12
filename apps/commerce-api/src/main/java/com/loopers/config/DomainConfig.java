@@ -45,8 +45,11 @@ public class DomainConfig {
     }
 
     @Bean
-    public LikeService likeService(LikeRepository likeRepository) {
-        return new LikeService(likeRepository);
+    public LikeService likeService(
+            LikeRepository likeRepository,
+            ProductRepository productRepository
+    ) {
+        return new LikeService(likeRepository, productRepository);
     }
 
     @Bean
