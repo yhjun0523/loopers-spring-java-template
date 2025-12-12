@@ -67,6 +67,9 @@ public class LikeService {
      * 사용자가 좋아요한 상품 ID 목록 조회
      */
     public List<Long> getLikedProductIds(String userId) {
+        if (userId == null) {
+            throw new NullPointerException("userId는 null일 수 없습니다");
+        }
         return likeRepository.findProductIdsByUserId(userId);
     }
 }

@@ -209,7 +209,7 @@ public class Order {
         BigDecimal pointsAmount = BigDecimal.valueOf(usedPoints);
         if (pointsAmount.compareTo(amountAfterCoupon) > 0) {
             throw new IllegalArgumentException(
-                    String.format("사용 포인트(%d)가 쿠폰 할인 후 금액(%s)을 초과할 수 없습니다",
+                    String.format("사용 포인트(%d)가 총 주문 금액(%s)을 초과할 수 없습니다",
                             usedPoints, amountAfterCoupon)
             );
         }
