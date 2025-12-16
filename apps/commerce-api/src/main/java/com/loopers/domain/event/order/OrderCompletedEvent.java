@@ -3,7 +3,8 @@ package com.loopers.domain.event.order;
 import com.loopers.domain.event.DomainEvent;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,7 +21,7 @@ public record OrderCompletedEvent(
     List<OrderItemDto> orderItems,
     BigDecimal totalAmount,
     BigDecimal finalAmount,
-    LocalDateTime occurredAt
+    ZonedDateTime occurredAt
 ) implements DomainEvent {
 
     private static final String TOPIC = "order-events";
@@ -45,7 +46,7 @@ public record OrderCompletedEvent(
             orderItems,
             totalAmount,
             finalAmount,
-            LocalDateTime.now()
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul"))
         );
     }
 
@@ -70,7 +71,7 @@ public record OrderCompletedEvent(
     }
 
     @Override
-    public LocalDateTime getOccurredAt() {
+    public ZonedDateTime getOccurredAt() {
         return occurredAt;
     }
 

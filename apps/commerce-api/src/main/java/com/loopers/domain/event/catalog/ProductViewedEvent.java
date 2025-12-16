@@ -2,7 +2,8 @@ package com.loopers.domain.event.catalog;
 
 import com.loopers.domain.event.DomainEvent;
 
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 /**
@@ -15,7 +16,7 @@ public record ProductViewedEvent(
     String eventType,
     Long productId,
     String userId,
-    LocalDateTime occurredAt
+    ZonedDateTime occurredAt
 ) implements DomainEvent {
 
     private static final String TOPIC = "catalog-events";
@@ -31,7 +32,7 @@ public record ProductViewedEvent(
             EVENT_TYPE,
             productId,
             userId,
-            LocalDateTime.now()
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul"))
         );
     }
 
@@ -56,7 +57,7 @@ public record ProductViewedEvent(
     }
 
     @Override
-    public LocalDateTime getOccurredAt() {
+    public ZonedDateTime getOccurredAt() {
         return occurredAt;
     }
 

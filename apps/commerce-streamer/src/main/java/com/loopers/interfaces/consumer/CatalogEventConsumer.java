@@ -17,7 +17,6 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -93,7 +92,7 @@ public class CatalogEventConsumer {
         }
 
         // 2. 최신 이벤트만 처리
-        LocalDateTime occurredAt = LocalDateTime.parse(eventNode.get("occurredAt").asText());
+        ZonedDateTime occurredAt = ZonedDateTime.parse(eventNode.get("occurredAt").asText());
         if (isOutdatedEvent(productId, occurredAt)) {
             log.info("[Kafka Consumer] 오래된 이벤트 스킵: eventId={}, eventType={}, productId={}", eventId, eventType, productId);
             // 오래된 이벤트도 처리된 것으로 기록하여 중복 검사를 피함
@@ -131,18 +130,19 @@ public class CatalogEventConsumer {
 
     /**
      * 이벤트가 기존에 저장된 데이터보다 오래된 것인지 확인
+     * - ZonedDateTime 직접 비교 (타임존 정보 포함)
      */
-    private boolean isOutdatedEvent(Long productId, LocalDateTime eventOccurredAt) {
+    private boolean isOutdatedEvent(Long productId, ZonedDateTime eventOccurredAt) {
         Optional<ProductMetrics> metricsOpt = productMetricsRepository.findByProductId(productId);
         if (metricsOpt.isEmpty()) {
             return false; // 기존 데이터가 없으면 오래된 것이 아님
         }
 
         ProductMetrics metrics = metricsOpt.get();
-        ZonedDateTime eventTime = eventOccurredAt.atZone(metrics.getUpdatedAt().getZone());
+        ZonedDateTime lastUpdatedAt = metrics.getUpdatedAt();
 
         // 이벤트 발생 시각이 마지막 업데이트 시각보다 이전이거나 같으면 오래된 이벤트로 간주
-        return !eventTime.isAfter(metrics.getUpdatedAt());
+        return !eventOccurredAt.isAfter(lastUpdatedAt);
     }
 
     private void saveEventHandled(String eventId, String eventType, String aggregateId) {

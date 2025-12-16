@@ -1,9 +1,10 @@
 package com.loopers.domain.event;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * Kafka로 발행될 도메인 이벤트의 기본 인터페이스
+ * - 타임존 정보를 포함한 ZonedDateTime 사용
  */
 public interface DomainEvent {
 
@@ -28,9 +29,9 @@ public interface DomainEvent {
     String getAggregateId();
 
     /**
-     * 이벤트 발생 시각
+     * 이벤트 발생 시각 (타임존 정보 포함)
      */
-    LocalDateTime getOccurredAt();
+    ZonedDateTime getOccurredAt();
 
     /**
      * Kafka 토픽 이름

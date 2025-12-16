@@ -2,7 +2,8 @@ package com.loopers.domain.event.catalog;
 
 import com.loopers.domain.event.DomainEvent;
 
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 /**
@@ -16,7 +17,7 @@ public record ProductLikeToggledEvent(
     Long productId,
     String userId,
     boolean isAdded,
-    LocalDateTime occurredAt
+    ZonedDateTime occurredAt
 ) implements DomainEvent {
 
     private static final String TOPIC = "catalog-events";
@@ -34,7 +35,7 @@ public record ProductLikeToggledEvent(
             productId,
             userId,
             true,
-            LocalDateTime.now()
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul"))
         );
     }
 
@@ -48,7 +49,7 @@ public record ProductLikeToggledEvent(
             productId,
             userId,
             false,
-            LocalDateTime.now()
+            ZonedDateTime.now(ZoneId.of("Asia/Seoul"))
         );
     }
 
@@ -73,7 +74,7 @@ public record ProductLikeToggledEvent(
     }
 
     @Override
-    public LocalDateTime getOccurredAt() {
+    public ZonedDateTime getOccurredAt() {
         return occurredAt;
     }
 

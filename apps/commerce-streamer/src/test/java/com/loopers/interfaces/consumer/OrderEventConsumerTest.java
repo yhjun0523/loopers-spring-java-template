@@ -15,7 +15,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -97,7 +98,7 @@ class OrderEventConsumerTest extends IntegrationTestBase {
     @DisplayName("오래된 주문 완료 이벤트는 스킵되고 metrics에 반영되지 않으며 캐시도 무효화되지 않는다")
     void testConsume_OutdatedOrderCompletedEvent_ShouldBeSkipped() throws JsonProcessingException, InterruptedException {
         // Given - Send a newer event first
-        LocalDateTime newerTime = LocalDateTime.now();
+        ZonedDateTime newerTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
         String newerEventId = UUID.randomUUID().toString();
         OrderCompletedEvent.OrderItemDto itemA = new OrderCompletedEvent.OrderItemDto(
             PRODUCT_A_ID, "Product A", BigDecimal.valueOf(1000), 2);
@@ -126,7 +127,7 @@ class OrderEventConsumerTest extends IntegrationTestBase {
         TimeUnit.MILLISECONDS.sleep(100);
 
         // When - Send an older event
-        LocalDateTime olderTime = newerTime.minusMinutes(5);
+        ZonedDateTime olderTime = newerTime.minusMinutes(5);
         String olderEventId = UUID.randomUUID().toString();
         OrderCompletedEvent olderEvent = OrderCompletedEvent.of(
             TEST_ORDER_ID, TEST_USER_ID, List.of(itemA), BigDecimal.valueOf(2000), BigDecimal.valueOf(2000)
