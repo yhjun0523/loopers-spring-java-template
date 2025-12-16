@@ -15,6 +15,10 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       retries: 3
+      acks: all # At Least Once 보장 (모든 ISR 확인 후 ACK)
+      properties:
+        enable.idempotence: true # 멱등성 보장 (중복 메시지 방지)
+        max.in.flight.requests.per.connection: 5 # 멱등성 활성화 시 기본값
     consumer:
       group-id: loopers-default-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

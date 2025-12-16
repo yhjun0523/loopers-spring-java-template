@@ -1,5 +1,7 @@
 package com.loopers.application.payment.event;
 
+import com.loopers.application.outbox.OutboxEventPublisher;
+import com.loopers.domain.event.order.OrderCompletedEvent;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.support.error.CoreException;
@@ -13,10 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.List;
+
 /**
  * 결제 이벤트 핸들러
  * - 결제 완료 후 후속 처리를 비동기로 수행한다
  * - 주문 완료 처리 (별도 트랜잭션)
+ * - Kafka 이벤트 발행 (Outbox Pattern)
  * - 데이터 플랫폼 전송 (로깅)
  */
 @Slf4j
@@ -25,6 +30,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class PaymentEventHandler {
 
     private final OrderRepository orderRepository;
+    private final OutboxEventPublisher outboxEventPublisher;
 
     /**
      * 결제 완료 후 주문 완료 처리
@@ -57,6 +63,54 @@ public class PaymentEventHandler {
             // 주문 완료 처리 실패는 로그만 남기고 결제는 유지한다
             // 스케줄러나 재시도 로직으로 복구 가능
             log.error("[이벤트] 주문 완료 처리 실패: orderId={}, paymentId={}, error={}",
+                    event.orderId(), event.paymentId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 결제 완료 후 Kafka 이벤트 발행 (Outbox Pattern)
+     * - 결제 트랜잭션이 커밋된 후 실행된다
+     * - 별도 트랜잭션으로 실행되어 Outbox 저장
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Async
+    public void publishToKafka(PaymentCompletedEvent event) {
+        if (!event.isSuccess()) {
+            log.info("[이벤트] 결제 실패로 Kafka 이벤트 발행 스킵: paymentId={}, orderId={}",
+                    event.paymentId(), event.orderId());
+            return;
+        }
+
+        try {
+            log.info("[이벤트] Kafka 이벤트 발행 시작: orderId={}, paymentId={}",
+                    event.orderId(), event.paymentId());
+
+            Order order = orderRepository.findById(event.orderId())
+                    .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문을 찾을 수 없습니다: " + event.orderId()));
+
+            List<OrderCompletedEvent.OrderItemDto> orderItems = order.getOrderItems().stream()
+                    .map(item -> new OrderCompletedEvent.OrderItemDto(
+                            item.getProductId(),
+                            item.getProductName(),
+                            item.getPrice(),
+                            item.getQuantity()
+                    ))
+                    .toList();
+
+            OrderCompletedEvent kafkaEvent = OrderCompletedEvent.of(
+                    order.getId(),
+                    order.getUserId(),
+                    orderItems,
+                    order.getTotalAmount(),
+                    order.getFinalAmount()
+            );
+
+            outboxEventPublisher.publish(kafkaEvent);
+
+            log.info("[이벤트] Kafka 이벤트 발행 완료: eventId={}", kafkaEvent.eventId());
+        } catch (Exception e) {
+            log.error("[이벤트] Kafka 이벤트 발행 실패: orderId={}, paymentId={}, error={}",
                     event.orderId(), event.paymentId(), e.getMessage(), e);
         }
     }

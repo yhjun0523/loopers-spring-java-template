@@ -1,5 +1,7 @@
 package com.loopers.application.like.event;
 
+import com.loopers.application.outbox.OutboxEventPublisher;
+import com.loopers.domain.event.catalog.ProductLikeToggledEvent;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.infrastructure.cache.ProductCacheService;
@@ -19,6 +21,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * - 좋아요 토글 후 후속 처리를 비동기로 수행한다
  * - 상품의 좋아요 수 집계 (별도 트랜잭션, eventual consistency)
  * - 캐시 무효화
+ * - Kafka 이벤트 발행 (Outbox Pattern)
  * - 사용자 행동 로깅
  */
 @Slf4j
@@ -28,6 +31,7 @@ public class LikeEventHandler {
 
     private final ProductRepository productRepository;
     private final ProductCacheService productCacheService;
+    private final OutboxEventPublisher outboxEventPublisher;
 
     /**
      * 좋아요 토글 후 상품의 좋아요 수 집계 처리
@@ -60,6 +64,32 @@ public class LikeEventHandler {
             // 집계 실패는 로그만 남기고 좋아요는 유지한다
             // 스케줄러로 주기적으로 동기화하거나 재시도 로직으로 복구 가능
             log.error("[이벤트] 좋아요 수 집계 실패: productId={}, userId={}, error={}",
+                    event.productId(), event.userId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 좋아요 토글 후 Kafka 이벤트 발행 (Outbox Pattern)
+     * - 좋아요 트랜잭션이 커밋된 후 실행된다
+     * - 별도 트랜잭션으로 실행되어 Outbox 저장
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Async
+    public void publishToKafka(LikeToggledEvent event) {
+        try {
+            log.info("[이벤트] Kafka 이벤트 발행 시작: productId={}, userId={}, isAdded={}",
+                    event.productId(), event.userId(), event.isAdded());
+
+            ProductLikeToggledEvent kafkaEvent = event.isAdded()
+                ? ProductLikeToggledEvent.added(event.productId(), event.userId())
+                : ProductLikeToggledEvent.removed(event.productId(), event.userId());
+
+            outboxEventPublisher.publish(kafkaEvent);
+
+            log.info("[이벤트] Kafka 이벤트 발행 완료: eventId={}", kafkaEvent.eventId());
+        } catch (Exception e) {
+            log.error("[이벤트] Kafka 이벤트 발행 실패: productId={}, userId={}, error={}",
                     event.productId(), event.userId(), e.getMessage(), e);
         }
     }
