@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.application.productmetrics.ProductMetricsService;
 import com.loopers.domain.eventhandled.EventHandled;
 import com.loopers.domain.eventhandled.EventHandledRepository;
+import com.loopers.domain.productmetrics.ProductMetrics;
+import com.loopers.domain.productmetrics.ProductMetricsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,7 +17,10 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Catalog 이벤트 Consumer
@@ -29,6 +34,7 @@ import java.util.List;
 public class CatalogEventConsumer {
 
     private final EventHandledRepository eventHandledRepository;
+    private final ProductMetricsRepository productMetricsRepository;
     private final ProductMetricsService productMetricsService;
     private final ObjectMapper objectMapper;
 
@@ -80,9 +86,18 @@ public class CatalogEventConsumer {
         Long productId = eventNode.get("productId").asLong();
         String aggregateId = productId.toString();
 
-        // 멱등 처리: 이미 처리된 이벤트는 스킵
+        // 1. 멱등 처리: 이미 처리된 이벤트는 스킵
         if (isDuplicateEvent(eventId)) {
             log.info("[Kafka Consumer] 중복 이벤트 스킵: eventId={}, eventType={}", eventId, eventType);
+            return;
+        }
+
+        // 2. 최신 이벤트만 처리
+        LocalDateTime occurredAt = LocalDateTime.parse(eventNode.get("occurredAt").asText());
+        if (isOutdatedEvent(productId, occurredAt)) {
+            log.info("[Kafka Consumer] 오래된 이벤트 스킵: eventId={}, eventType={}, productId={}", eventId, eventType, productId);
+            // 오래된 이벤트도 처리된 것으로 기록하여 중복 검사를 피함
+            saveEventHandled(eventId, eventType, aggregateId);
             return;
         }
 
@@ -110,16 +125,26 @@ public class CatalogEventConsumer {
         }
     }
 
-    /**
-     * 중복 이벤트 체크
-     */
     private boolean isDuplicateEvent(String eventId) {
         return eventHandledRepository.existsByEventId(eventId);
     }
 
     /**
-     * 처리 성공 기록
+     * 이벤트가 기존에 저장된 데이터보다 오래된 것인지 확인
      */
+    private boolean isOutdatedEvent(Long productId, LocalDateTime eventOccurredAt) {
+        Optional<ProductMetrics> metricsOpt = productMetricsRepository.findByProductId(productId);
+        if (metricsOpt.isEmpty()) {
+            return false; // 기존 데이터가 없으면 오래된 것이 아님
+        }
+
+        ProductMetrics metrics = metricsOpt.get();
+        ZonedDateTime eventTime = eventOccurredAt.atZone(metrics.getUpdatedAt().getZone());
+
+        // 이벤트 발생 시각이 마지막 업데이트 시각보다 이전이거나 같으면 오래된 이벤트로 간주
+        return !eventTime.isAfter(metrics.getUpdatedAt());
+    }
+
     private void saveEventHandled(String eventId, String eventType, String aggregateId) {
         try {
             EventHandled eventHandled = EventHandled.createSuccess(
@@ -135,9 +160,6 @@ public class CatalogEventConsumer {
         }
     }
 
-    /**
-     * 처리 실패 기록
-     */
     private void saveEventHandledFailure(String eventId, String eventType, String aggregateId, String errorMessage) {
         try {
             EventHandled eventHandled = EventHandled.createFailure(
