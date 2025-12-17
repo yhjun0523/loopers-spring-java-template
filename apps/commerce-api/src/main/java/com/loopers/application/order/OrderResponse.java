@@ -3,6 +3,7 @@ package com.loopers.application.order;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderStatus;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 /**
  * 주문 응답 DTO
  */
+@Getter
 public class OrderResponse {
     private final Long orderId;
     private final String userId;
@@ -64,55 +66,10 @@ public class OrderResponse {
         );
     }
 
-    // === Getters ===
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public BigDecimal getCouponDiscount() {
-        return couponDiscount;
-    }
-
-    public int getUsedPoints() {
-        return usedPoints;
-    }
-
-    public BigDecimal getFinalAmount() {
-        return finalAmount;
-    }
-
-    public Long getCouponId() {
-        return couponId;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getOrderedAt() {
-        return orderedAt;
-    }
-
-    public LocalDateTime getModifiedAt() {
-        return modifiedAt;
-    }
-
-    public List<OrderItemResponse> getOrderItems() {
-        return orderItems;
-    }
-
     /**
      * 주문 항목 응답 DTO
      */
+    @Getter
     public static class OrderItemResponse {
         private final Long orderItemId;
         private final Long productId;
@@ -140,30 +97,6 @@ public class OrderResponse {
                     orderItem.getQuantity(),
                     orderItem.getSubtotal()
             );
-        }
-
-        public Long getOrderItemId() {
-            return orderItemId;
-        }
-
-        public Long getProductId() {
-            return productId;
-        }
-
-        public String getProductName() {
-            return productName;
-        }
-
-        public BigDecimal getPrice() {
-            return price;
-        }
-
-        public int getQuantity() {
-            return quantity;
-        }
-
-        public BigDecimal getSubtotal() {
-            return subtotal;
         }
     }
 }

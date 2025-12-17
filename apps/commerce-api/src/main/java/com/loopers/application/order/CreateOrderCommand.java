@@ -1,12 +1,14 @@
 package com.loopers.application.order;
 
 import com.loopers.domain.order.OrderService;
+import lombok.Getter;
 
 import java.util.List;
 
 /**
  * 주문 생성 커맨드
  */
+@Getter
 public class CreateOrderCommand {
     private final String userId;
     private final List<OrderService.OrderItemRequest> orderItems;
@@ -23,21 +25,5 @@ public class CreateOrderCommand {
         this.orderItems = orderItems;
         this.usedPoints = usedPoints;
         this.couponId = couponId;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public List<OrderService.OrderItemRequest> getOrderItems() {
-        return orderItems;
-    }
-
-    public int getUsedPoints() {
-        return usedPoints;
-    }
-
-    public Long getCouponId() {
-        return couponId;
     }
 }

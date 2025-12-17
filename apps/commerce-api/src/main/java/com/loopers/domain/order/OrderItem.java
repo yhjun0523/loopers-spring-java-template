@@ -1,5 +1,7 @@
 package com.loopers.domain.order;
 
+import lombok.Getter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -7,6 +9,7 @@ import java.time.LocalDateTime;
  * 주문 항목 Entity
  * 주문에 포함된 개별 상품 정보를 나타낸다
  */
+@Getter
 public class OrderItem {
     private final Long id;
     private final Long productId;
@@ -91,35 +94,5 @@ public class OrderItem {
         if (quantity <= 0) {
             throw new IllegalArgumentException("수량은 1 이상이어야 합니다: " + quantity);
         }
-    }
-
-    // === Getters ===
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getSubtotal() {
-        return subtotal;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 }

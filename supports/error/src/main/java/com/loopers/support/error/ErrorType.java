@@ -1,7 +1,11 @@
 package com.loopers.support.error;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+@Getter
+@RequiredArgsConstructor
 public enum ErrorType {
     /** 범용 에러 */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(), "일시적인 오류가 발생했습니다."),
@@ -12,22 +16,4 @@ public enum ErrorType {
     private final HttpStatus status;
     private final String code;
     private final String message;
-
-    ErrorType(HttpStatus status, String code, String message) {
-        this.status = status;
-        this.code = code;
-        this.message = message;
-    }
-
-    public HttpStatus getStatus() {
-        return status;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public String getMessage() {
-        return message;
-    }
 }

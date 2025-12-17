@@ -5,7 +5,9 @@ import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "example")
 public class ExampleModel extends BaseEntity {
@@ -25,14 +27,6 @@ public class ExampleModel extends BaseEntity {
 
         this.name = name;
         this.description = description;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public void update(String newDescription) {

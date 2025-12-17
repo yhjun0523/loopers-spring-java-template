@@ -4,6 +4,7 @@ import com.loopers.domain.BaseEntity;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
  * - Producer → Broker 의 At Least Once 보장
  * - 도메인 변경과 이벤트 발행을 하나의 트랜잭션으로 묶음
  */
+@Getter
 @Entity
 @Table(
     name = "outbox_event",
@@ -118,43 +120,6 @@ public class OutboxEvent extends BaseEntity {
 
     public boolean canRetry() {
         return this.retryCount < 5; // 최대 5회 재시도
-    }
-
-    // Getters
-    public String getEventType() {
-        return eventType;
-    }
-
-    public String getAggregateType() {
-        return aggregateType;
-    }
-
-    public String getAggregateId() {
-        return aggregateId;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
-    public OutboxStatus getStatus() {
-        return status;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public LocalDateTime getPublishedAt() {
-        return publishedAt;
-    }
-
-    public Integer getRetryCount() {
-        return retryCount;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
     }
 
     // 검증 메서드들
