@@ -4,6 +4,9 @@ plugins {
 }
 
 dependencies {
+    // supports
+    api(project(":supports:error"))
+
     // jpa
     api("org.springframework.boot:spring-boot-starter-data-jpa")
     // querydsl
